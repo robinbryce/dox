@@ -106,9 +106,10 @@ def new_doc(cfg, tname: str, slug: str, *, as_dir: bool | None, title: str | Non
     if not as_dir and t.layout == "dir":
         raise ConfigError(f"{tname} documents are directories")
     target = next((d for d in t.dirs if globs.is_literal(d) and not globs.norm(d).endswith(".md")), None)
-    if target is None and not any(globs.norm(d).endswith(f"/{ident}.md") or globs.norm(d) == f"{ident}.md"
+    if target is None and not t.fallback and not any(globs.norm(d).endswith(f"/{ident}.md") or globs.norm(d) == f"{ident}.md"
                                   for d in t.dirs):
         raise ConfigError(f"{tname}: no literal directory in `dirs` to create the document in")
+    # The fallback type lives anywhere; new ones start at the docs root.
     base = cfg.docs_root / globs.norm(target or "")
     title = title or slug.replace("-", " ").capitalize()
     values = {"ID": ident, "DATE": date.isoformat(), "TITLE": title, "SLUG": slug,

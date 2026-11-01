@@ -126,3 +126,12 @@ class New(DoxCase):
     def test_rules_layout_refuses_dir(self):
         repo = self.repo("api", {})
         self.assertEqual(self.dox("new", "rules", "x", "--dir", "--offline", cwd=repo)[0], 2)
+
+
+class NewFallback(DoxCase):
+    def test_fallback_type_starts_at_docs_root(self):
+        self.schema_variant(lambda t: t.replace("fallback = true", 'fallback = true\ntemplate = "adr.md"'))
+        repo = self.repo("api", {})
+        code, out, err = self.dox("new", "note", "architecture", "--offline", cwd=repo)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out.strip(), str(repo / "docs/architecture.md"))
