@@ -100,6 +100,25 @@ class IdUnique(DoxCase):
         self.assertEqual(len(fs), 2)
         self.assertIn("number ADR-0023 is shared", fs[0]["message"])
 
+    def test_allowed_shared_number(self):
+        a, ta = adr(23, "grant-format")
+        b, tb = adr(23, "grant-store")
+        c, tc = adr(24, "one")
+        d, td = adr(24, "two")
+        repo = self.repo("api", {f"docs/adr/{a}.md": ta, f"docs/adr/{b}.md": tb,
+                                 f"docs/adr/{c}.md": tc, f"docs/adr/{d}.md": td},
+                         extra='[checks.id-unique]\nallow = ["ADR-0023"]\n')
+        fs = self.findings(repo, "id-unique")
+        self.assertEqual(sorted(f["path"] for f in fs), [f"docs/adr/{c}.md", f"docs/adr/{d}.md"])
+
+    def test_allow_must_be_citations(self):
+        a, ta = adr(1, "x")
+        repo = self.repo("api", {f"docs/adr/{a}.md": ta},
+                         extra='[checks.id-unique]\nallow = "ADR-0023"\n')
+        code, out, err = self.dox("lint", cwd=repo)
+        self.assertEqual(code, 2, out + err)
+        self.assertIn("allow", err)
+
     def test_same_id_twice(self):
         a, ta = adr(1, "x")
         a2, tb = adr(1, "x", status="superseded", superseded_by="ADR-0002")

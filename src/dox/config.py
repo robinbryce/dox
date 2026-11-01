@@ -428,6 +428,9 @@ def _types(table, sname: str, notes: list[Note]) -> dict[str, TypeDef]:
 
 
 def _check_options(options: dict, notes: list[Note]):
+    allow = options.get("id-unique", {}).get("allow", [])
+    if not isinstance(allow, list) or not all(isinstance(a, str) for a in allow):
+        raise ConfigError("[checks.id-unique] allow: a list of citations, such as [\"ADR-0023\"]")
     for p in options.get("no-work-ids", {}).get("patterns", []):
         if not isinstance(p, dict) or "regex" not in p:
             raise ConfigError("[checks.no-work-ids] patterns: each entry needs `regex` and `what`")

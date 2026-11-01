@@ -247,7 +247,7 @@ The workspace file is `$XDG_CONFIG_HOME/dox/config.toml`
 |----|---------|---------|-------|
 | `config` | yes | | Configuration the run could still continue past: unknown keys, schema and `status.values` disagreeing |
 | `schema` | yes | | Frontmatter missing, unparsable, or invalid against the type's schema |
-| `id-unique` | yes | | Two documents in one home with the same id or citation number; identity field not equal to the stem |
+| `id-unique` | yes | `allow` (list of citations) | Two documents in one home with the same id or citation number; identity field not equal to the stem |
 | `links-local` | yes | `forbid` (list of URL substrings) | Relative links and homeless refs that do not resolve; forbidden link targets; a `replaces` without its `replaced-by` |
 | `placement` | yes | | A document outside its type's `dirs`; a `retired` status outside `retired_dir`; a `closed` status outside `archive_dir`; a non-`README.md` part with frontmatter |
 | `index-fresh` | yes | | A generated index or digest differs from what `dox index` would write |
