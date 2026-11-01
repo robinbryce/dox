@@ -1,0 +1,94 @@
+contract = "1.0"
+name = "Example Org"
+exclude = [".agents/**"]
+
+[namespaces]
+handbook = "example-org/handbook"
+api      = "example-org/api"
+work     = "example-org/work"
+
+[types.adr]
+kind = "canon"
+schema = "adr.schema.json"
+identity = "id"
+id_format = "adr-{n:04}-{slug}"
+cite = "ADR-{n:04}"
+allocate = "namespace"
+dirs = ["adr"]
+retired_dir = "adr/retired"
+scan_dirs = ["decisions"]
+layout = "either"
+index = "README.md"
+template = "adr.md"
+[types.adr.status]
+field = "status"
+values = { proposed = "discussion", accepted = "in-force", rejected = "retired", superseded = "retired" }
+[types.adr.links]
+supersedes = "replaces"
+superseded-by = "replaced-by"
+refs = "cites"
+
+[types.rules]
+kind = "canon"
+schema = "rules.schema.json"
+identity = "id"
+dirs = ["rules.md", "rules"]
+layout = "file"
+status = "none"
+
+[types.note]
+kind = "canon"
+schema = "note.schema.json"
+identity = "id"
+fallback = true
+[types.note.status]
+field = "status"
+values = { draft = "discussion", current = "in-force", superseded = "retired" }
+[types.note.links]
+supersedes = "replaces"
+superseded-by = "replaced-by"
+refs = "cites"
+
+[types.plan]
+kind = "work"
+schema = "plan.schema.json"
+identity = "id"
+id_format = "plan-{yymm}-{n:02}-{slug}"
+id_legacy = ['^plan-[0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*$']
+allocate = "month"
+dirs = ["plans"]
+archive_dir = "archive/{yymm}"
+template = "plan.md"
+template_dir = "plan-dir"
+[types.plan.status]
+field = "status"
+values = { draft = "discussion", active = "in-force", complete = "closed", abandoned = "closed" }
+[types.plan.links]
+refs = "cites"
+
+[refs]
+separator = ":"
+external = [{ pattern = '^EX-[0-9]+$', url = "https://tracker.example.org/{0}" }]
+
+[links]
+cross_repo = "https://forge.example.org/{repo}/blob/{ref}/{path}"
+
+[severity]
+config = "error"
+schema = "error"
+id-unique = "error"
+links-local = "error"
+placement = "error"
+index-fresh = "error"
+no-work-ids = "error"
+no-plans-in-canon = "error"
+links-remote = "error"
+
+[checks.no-work-ids]
+patterns = [
+  { regex = '\bEX-[0-9]+\b', what = "tracker id" },
+  { regex = '\bplan-[0-9]{4}\b', what = "plan id" },
+]
+
+[checks.no-plans-in-canon]
+dirs = ["**/plans/**"]

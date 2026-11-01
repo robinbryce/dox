@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/doc-schema/rules.schema.json",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "version"
+  ],
+  "allOf": [
+    {
+      "$ref": "common.schema.json#/$defs/base"
+    }
+  ],
+  "unevaluatedProperties": false
+}

@@ -1,0 +1,36 @@
+name: dox
+description: Check a repository's docs with dox against a pinned schema repo.
+branding:
+  icon: book-open
+  color: green
+inputs:
+  schema-repo:
+    description: The schema repo, <owner>/<repo>. The repository's .dox.toml pins its version.
+    required: true
+  args:
+    description: Arguments to dox, for example "lint" or "lint --changed --remote".
+    required: false
+    default: lint
+  token:
+    description: Token for fetching a private schema repo and for remote checks.
+    required: false
+    default: ${{ github.token }}
+  python-version:
+    description: Python for dox (3.11 or later).
+    required: false
+    default: "3.12"
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@v6
+    - name: dox
+      shell: bash
+      env:
+        DOX_SCHEMA_REPO: ${{ inputs.schema-repo }}
+        DOX_ARGS: ${{ inputs.args }}
+        DOX_PYTHON: ${{ inputs.python-version }}
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        # DOX_ARGS is split into words on purpose; it is never evaluated.
+        # shellcheck disable=SC2086
+        uv tool run --python "$DOX_PYTHON" --from "$GITHUB_ACTION_PATH" dox $DOX_ARGS

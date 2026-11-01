@@ -1,0 +1,4 @@
+schema_ref = "v1.0.0"
+namespace = "handbook"
+root = "docs"
+types = ["adr", "rules", "note"]
