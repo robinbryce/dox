@@ -1,0 +1,41 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --python ${{ matrix.python }} python -m unittest discover -s tests -t . -v
+
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Make the example handbook a git repository
+        run: |
+          cp -R examples/handbook "$RUNNER_TEMP/handbook"
+          git -C "$RUNNER_TEMP/handbook" init -q
+          git -C "$RUNNER_TEMP/handbook" add -A
+      - name: dox lint through the action
+        uses: ./
+        env:
+          DOX_SCHEMA_PATH: ${{ github.workspace }}/examples/doc-schema
+        with:
+          schema-repo: example-org/doc-schema
+          args: lint -C ${{ runner.temp }}/handbook
+      - name: The action fails on a broken document
+        run: |
+          echo "See [gone](missing.md)." >> "$RUNNER_TEMP/handbook/docs/style.md"
+          if DOX_SCHEMA_REPO=example-org/doc-schema DOX_SCHEMA_PATH="$GITHUB_WORKSPACE/examples/doc-schema" \
+             uv tool run --from "$GITHUB_WORKSPACE" dox lint -C "$RUNNER_TEMP/handbook"; then
+            echo "expected exit 1"; exit 1
+          fi
