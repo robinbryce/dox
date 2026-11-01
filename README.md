@@ -8,7 +8,7 @@ allocates ids safely, and generates indexes.
 dox is generic. The document types, schemas and rules come from a **schema
 repo** you name with `--dox-schema <owner>/<repo>` or `DOX_SCHEMA_REPO`.
 
-Status: design. See [ADR-0001](docs/adr/adr-0001-dox-design.md).
+Status: design accepted, not yet implemented. See [ADR-0001](docs/adr/adr-0001-dox-design.md).
 
 ## License
 

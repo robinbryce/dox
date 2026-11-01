@@ -1,7 +1,7 @@
 ---
 id: adr-0001-dox-design
 title: dox design — a generic docs checker driven by a schema repo
-status: discuss
+status: accepted
 created: 2026-11-01
 updated: 2026-11-01
 categories: [DESIGN, CONFIG, CI, PACKAGING]
@@ -49,6 +49,8 @@ documents meaning comes from a **schema repo**: a git repository named
 - `schemas/*.schema.json`, JSON Schema draft 2020-12, one per document
   type;
 - `templates/`, scaffolds for `dox new`.
+
+What dox requires of a schema repo is fixed in section 9.
 
 ### 2. The schema repo is named explicitly, never guessed
 
@@ -157,9 +159,37 @@ Arguments may grow.
 - Agent skills and hooks that call dox live with the agent configuration
   that uses them, not here.
 
-### 9. Scope of this decision
+### 9. Schema repo contract
 
-This decision fixes sections 1 to 8. Left to the implementation:
+dox's commands need to know what certain fields and directories mean. It
+hard-codes none of their names. Each document type in the preset declares
+them by **role**, and dox acts only on roles:
+
+| Role | Declared as | Used by |
+|------|-------------|---------|
+| identity | the field holding the id, which must equal the filename stem (the directory name for a directory document) | `lint`, `next`, `graph` |
+| status | the field holding the status, and its allowed values, each tagged `discussion`, `in-force`, `retired` or `closed` | `lint`, `retire`, `close`, `stale` |
+| links | each link field, tagged by meaning: `replaces`, `replaced-by`, `absorbed-into`, `cites` or `outcome` | `graph`, `retire`, `close`, `lint` |
+| review date | optionally, the field holding the next review date | `stale` |
+| placement | live, retired and archive directories; the id pattern; the allocation scope (whole namespace, or per period such as month) | `lint`, `next`, `retire`, `close` |
+
+- Every type declares identity, status (or states that it has none) and
+  placement. Links and review date are optional.
+- A `replaces` field and a `replaced-by` field are a pair: `lint` checks
+  both sides, and `retire` writes both.
+- `dox.toml` declares the contract version it is written for. dox refuses
+  a major version it does not support, with a configuration error (exit
+  code 2), so the contract can evolve without silently misreading an older
+  schema repo.
+- The JSON Schema files only validate frontmatter. dox reads no extra keys
+  from inside them; roles are declared in `dox.toml` alone.
+
+The exact key names and the contract's first version are part of the
+implementation.
+
+### 10. Scope of this decision
+
+This decision fixes sections 1 to 9. Left to the implementation:
 internal module layout, the exact `dox.toml` and `.dox.toml` keys, the
 cache format, how remote checks fetch sibling trees (git or the GitHub
 API), how a schema repo lints itself against a local checkout before
