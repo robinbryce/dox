@@ -14,7 +14,7 @@ and a repository declare: [the contract](docs/contract.md).
 ## Install
 
 ```bash
-uv tool install git+https://github.com/robinbryce/dox@v0.2.0
+uv tool install git+https://github.com/robinbryce/dox@v0.2.1
 export DOX_SCHEMA_REPO=example-org/doc-schema   # or pass --dox-schema
 ```
 
@@ -47,7 +47,7 @@ remote source could not be reached.
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: robinbryce/dox@v0.2.0
+- uses: robinbryce/dox@v0.2.1
   with:
     schema-repo: example-org/doc-schema
     args: lint --changed

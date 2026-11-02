@@ -127,7 +127,9 @@ Meanings: `replaces`, `replaced-by`, `absorbed-into`, `cites`, `outcome`.
 A type that declares `replaces` must declare `replaced-by` too; `lint`
 checks both sides of each pair. A field may hold one ref or a list. A
 document with a non-empty `absorbed-into` field counts as `retired` for
-placement whatever its status.
+placement whatever its status. An `outcome` field may instead hold the
+string `none: <reason>`: a closed document that produced nothing durable.
+It is not a ref, and `lint` does not resolve it.
 
 ### `[refs]`
 

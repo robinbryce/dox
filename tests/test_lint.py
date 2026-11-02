@@ -235,6 +235,16 @@ class WorkIds(DoxCase):
         self.assertEqual(data["findings"], [])
         self.assertEqual(code, 0)
 
+    def test_outcome_none_is_not_a_ref(self):
+        repo = self.repo("work", {
+            "archive/2610/plan-2610-02-y.md": fm(id="plan-2610-02-y", title="p", status="complete",
+                                                 created="2026-10-01", outcome='"none: superseded by events"'),
+            "archive/2610/plan-2610-03-z.md": fm(id="plan-2610-03-z", title="p", status="complete",
+                                                 created="2026-10-01", outcome=["ADR-0009"]),
+        }, namespace="work", root=".", types=["plan"])
+        msgs = [f["message"] for f in self.findings(repo, "links-local")]
+        self.assertEqual(msgs, ["outcome: 'ADR-0009' does not resolve"])
+
     def test_closed_plan_must_be_archived(self):
         repo = self.repo("work", {
             "plans/plan-2611-01-x.md": fm(id="plan-2611-01-x", title="p", status="complete", created="2026-11-01"),
