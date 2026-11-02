@@ -98,6 +98,9 @@ def cite_of(doc: Doc) -> str | None:
     return t.cite.render(n=int(got["n"]))
 
 
+NO_OUTCOME = re.compile(r"^none:\s*\S")
+
+
 def ref_values(doc: Doc) -> list[tuple[str, str, str]]:
     """(field, meaning, value) for every typed link in a document's frontmatter."""
     out = []
@@ -107,8 +110,11 @@ def ref_values(doc: Doc) -> list[tuple[str, str, str]]:
             continue
         items = v if isinstance(v, list) else [v]
         for item in items:
-            if isinstance(item, str):
-                out.append((f, meaning, item))
+            if not isinstance(item, str):
+                continue
+            if meaning == "outcome" and NO_OUTCOME.match(item):
+                continue  # a closed document with nothing durable to point at
+            out.append((f, meaning, item))
     return out
 
 

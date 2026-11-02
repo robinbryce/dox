@@ -65,7 +65,7 @@ SCHEMAS = {
     "rules.schema.json": doc_schema("rules", None, required=("id", "title", "version"),
                                     extra={"version": {"type": "string"}}),
     "plan.schema.json": doc_schema("plan", ["draft", "active", "complete", "abandoned"],
-                                   extra={"issues": {"type": "array"}}),
+                                   extra={"issues": {"type": "array"}, "outcome": {}}),
 }
 
 DOX_TOML = textwrap.dedent('''\
@@ -136,6 +136,7 @@ DOX_TOML = textwrap.dedent('''\
     values = { draft = "discussion", active = "in-force", complete = "closed", abandoned = "closed" }
     [types.plan.links]
     refs = "cites"
+    outcome = "outcome"
 
     [refs]
     separator = ":"
