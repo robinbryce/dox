@@ -131,12 +131,15 @@ def check_id_unique(ctx: Context):
             continue
         key = (t.name, got.get("yymm"), int(got["n"]))
         by_num.setdefault(key, []).append(doc)
+    allow = set(ctx.cfg.option("id-unique", "allow", []) or [])
     for (tname, yymm, n), docs in sorted(by_num.items(), key=lambda kv: (kv[0][0], kv[0][1] or "", kv[0][2])):
         stems = sorted({d.stem for d in docs})
         if len(stems) < 2:
             continue
         t = ctx.cfg.types[tname]
         label = t.cite.render(n=n) if t.cite else t.id_format.prefix(n=n, yymm=yymm)
+        if label in allow:
+            continue  # a legacy shared number, kept on purpose
         for d in docs:
             others = ", ".join(s for s in stems if s != d.stem)
             yield Finding("id-unique", d.path, 1, f"number {label} is shared with {others}",
