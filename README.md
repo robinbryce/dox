@@ -38,6 +38,8 @@ baseline   = ".dox-baseline.json"
 | `dox new <type> <slug> [--dir]` | Allocate an id and scaffold the document from the schema repo's template |
 | `dox graph [--json\|--mermaid\|--dot]` | Typed links and Markdown links: backlinks, orphans, supersession chains, links into retired documents |
 | `dox index [--check]` | Regenerate the indexes and digest the schema repo asks for |
+| `dox digest [--check]` | Regenerate the rules digest `.dox.toml` `[digest]` asks for |
+| `dox retire <ref> --by <ref> \| --absorbed-into <ref>... [--status S] [--dry-run]` | Retire a document: status and link fields on both sides, `git mv` to `retired_dir`, relative links rewritten; prints `moved <old> <new>` for a moves map |
 
 Every finding has a check id, `path:line`, a message and a fix. Exit codes:
 0 clean (warnings allowed), 1 errors, 2 usage or configuration error, 3 a

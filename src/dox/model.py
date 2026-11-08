@@ -90,6 +90,7 @@ class TypeDef:
     index: str | None = None
     template: str | None = None
     template_dir: str | None = None
+    retire: dict[str, str] = field(default_factory=dict)  # `by` / `absorbed` -> status
 
     @property
     def has_ids(self) -> bool:

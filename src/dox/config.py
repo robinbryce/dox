@@ -29,16 +29,19 @@ CHECKS = {
     "index-fresh": True,
     "no-work-ids": True,
     "no-plans-in-canon": True,
+    "rules-shape": True,
+    "digest-fresh": True,  # reads pinned includes; fetched once, then cached
     "links-remote": False,
 }
 LEVELS = ("error", "warn", "off")
 
 TOP_KEYS = {"contract", "name", "schemas", "templates", "exclude", "namespaces", "types",
-            "refs", "links", "severity", "checks", "index"}
+            "refs", "links", "severity", "checks", "index", "rules"}
 TYPE_KEYS = {"kind", "schema", "identity", "id_format", "id_legacy", "cite", "allocate", "dirs",
              "retired_dir", "archive_dir", "scan_dirs", "layout", "fallback", "status", "links",
-             "review_date", "index", "template", "template_dir"}
-REPO_KEYS = {"schema_ref", "namespace", "root", "types", "exclude", "baseline", "severity", "checks"}
+             "review_date", "index", "template", "template_dir", "retire"}
+REPO_KEYS = {"schema_ref", "namespace", "root", "types", "exclude", "baseline", "severity", "checks",
+             "digest"}
 HOME_RX = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 
 
@@ -49,6 +52,30 @@ class Note:
     path: str
     message: str
     fix: str
+
+
+@dataclass
+class RulesSpec:
+    """How a rules document is shaped (schema repo `[rules]`)."""
+
+    type: str
+    heading: re.Pattern  # groups `id` and `text`
+    level: int
+    fields: list[tuple[str, re.Pattern]]
+    link: bool
+
+
+@dataclass
+class Include:
+    """A rules file of another home, pinned at a ref, for the digest."""
+
+    home: str
+    path: str
+    ref: str
+
+    @property
+    def label(self) -> str:
+        return f"{self.home}:{self.path}@{self.ref}"
 
 
 @dataclass
@@ -82,6 +109,9 @@ class Config:
     cache_dir: Path
     notes: list[Note] = field(default_factory=list)
     schemas: dict[str, dict] = field(default_factory=dict)
+    rules: RulesSpec | None = None
+    digest_out: str | None = None  # repo-relative path of the rules digest
+    digest_include: list[Include] = field(default_factory=list)
 
     @property
     def docs_root(self) -> Path:
@@ -339,6 +369,8 @@ def load(cwd: Path, schema_flag: str | None = None, config_path: Path | None = N
         templates_dir=schema_dir / pre.get("templates", "templates"), registry=registry,
         clones=clones, timeout=timeout, cache_dir=Path(cache_dir).expanduser(), notes=notes,
         schemas=schemas)
+    cfg.rules = _rules(pre.get("rules"), sname, types)
+    cfg.digest_out, cfg.digest_include = _digest(repo.get("digest"), rname, namespaces, cfg.rules)
     cfg._schema_repo_source = schema_repo_src
     cfg._cache_source = cache_src
     cfg._clones_source = clones_src
@@ -415,6 +447,14 @@ def _types(table, sname: str, notes: list[Note]) -> dict[str, TypeDef]:
         has = set(t.links.values())
         if ("replaces" in has) != ("replaced-by" in has):
             raise ConfigError(f"{w}.links: `replaces` and `replaced-by` must be declared together")
+        retire = d.get("retire") or {}
+        if not isinstance(retire, dict) or not all(
+                k in ("by", "absorbed") and isinstance(v, str) for k, v in retire.items()):
+            raise ConfigError(f"{w}.retire: a table with `by` and/or `absorbed` status values")
+        for k, v in retire.items():
+            if t.role(v) != "retired":
+                raise ConfigError(f"{w}.retire: {k} = {v!r} is not a status with role \"retired\"")
+        t.retire = dict(retire)
         t.review_date = _str(d, "review_date", w, required=False)
         t.index = _str(d, "index", w, required=False)
         t.template = _str(d, "template", w, required=False)
@@ -425,6 +465,61 @@ def _types(table, sname: str, notes: list[Note]) -> dict[str, TypeDef]:
     if len(fallbacks) > 1:
         raise ConfigError(f"{sname}: at most one type may set fallback = true ({', '.join(fallbacks)})")
     return out
+
+
+def _rules(table, sname: str, types: dict[str, TypeDef]) -> RulesSpec | None:
+    if table is None:
+        return None
+    w = f"{sname} [rules]"
+    if not isinstance(table, dict):
+        raise ConfigError(f"{w} must be a table")
+    tname = _str(table, "type", w)
+    if tname not in types:
+        raise ConfigError(f"{w}: type {tname!r} is not declared")
+    try:
+        heading = re.compile(_str(table, "heading", w))
+    except re.error as e:
+        raise ConfigError(f"{w}: heading: {e}") from None
+    if not {"id", "text"} <= set(heading.groupindex):
+        raise ConfigError(f"{w}: heading needs named groups `id` and `text`")
+    level = table.get("level", 3)
+    if not isinstance(level, int) or not 1 <= level <= 6:
+        raise ConfigError(f"{w}: level must be 1 to 6")
+    fields = []
+    for i, f in enumerate(table.get("fields") or []):
+        if not isinstance(f, dict) or not isinstance(f.get("name"), str) or not isinstance(f.get("regex"), str):
+            raise ConfigError(f"{w}: fields entry {i + 1} needs `name` and `regex`")
+        try:
+            fields.append((f["name"], re.compile(f["regex"], re.M)))
+        except re.error as e:
+            raise ConfigError(f"{w}: fields {f['name']}: {e}") from None
+    return RulesSpec(tname, heading, level, fields, bool(table.get("link", False)))
+
+
+INCLUDE_RX = re.compile(r"^(?P<home>[a-z0-9][a-z0-9._-]*):(?P<path>[^@\s]+)@(?P<ref>[^@\s]+)$")
+
+
+def _digest(table, rname: str, namespaces: dict, rules: RulesSpec | None):
+    if table is None:
+        return None, []
+    w = f"{rname} [digest]"
+    if not isinstance(table, dict):
+        raise ConfigError(f"{w} must be a table")
+    if rules is None:
+        raise ConfigError(f"{w}: the schema repo declares no [rules], so there is nothing to digest")
+    from dox import globs
+    out = globs.norm(_str(table, "out", w))
+    if out.startswith("/") or ".." in out.split("/"):
+        raise ConfigError(f"{w}: out must be a path inside the repository")
+    includes = []
+    for raw in _strlist(table, "include", w):
+        m = INCLUDE_RX.match(raw)
+        if not m:
+            raise ConfigError(f"{w}: include {raw!r} must be <home>:<path>@<ref>")
+        if m["home"] not in namespaces:
+            raise ConfigError(f"{w}: include {raw!r}: unknown home {m['home']!r}")
+        includes.append(Include(m["home"], m["path"], m["ref"]))
+    return out, includes
 
 
 def _check_options(options: dict, notes: list[Note]):
