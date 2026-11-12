@@ -13,13 +13,15 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from dox import __version__, allocate, config, findings, graph, index, proc, remote
+from dox import __version__, allocate, config, findings, graph, index, proc, remote, retire, rules
 from dox.checks import OFFLINE, Context
 from dox.docs import Corpus
 from dox.errors import ConfigError, DoxError
 
 ALL_CHECKS = dict(OFFLINE)
 ALL_CHECKS["index-fresh"] = index.check_index_fresh
+ALL_CHECKS["rules-shape"] = rules.check_rules_shape
+ALL_CHECKS["digest-fresh"] = rules.check_digest_fresh
 ALL_CHECKS["links-remote"] = remote.check_links_remote
 
 
@@ -78,6 +80,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     ix = sub.add_parser("index", parents=[common], help="regenerate indexes and the digest")
     ix.add_argument("--check", action="store_true", help="exit 1 if anything would change; write nothing")
+
+    dg = sub.add_parser("digest", parents=[common], help="regenerate the rules digest")
+    dg.add_argument("--check", action="store_true", help="exit 1 if it would change; write nothing")
+
+    rt = sub.add_parser("retire", parents=[common],
+                        help="retire a document: link fields, move to retired/, rewrite links")
+    rt.add_argument("ref", help="the document: citation, id or path")
+    rt.add_argument("--by", metavar="REF", help="the document that replaces it")
+    rt.add_argument("--absorbed-into", dest="absorbed", action="append", default=[], metavar="REF",
+                    help="a document that now carries its substance (repeatable)")
+    rt.add_argument("--status", help="status to set, overriding the type's default")
+    rt.add_argument("--date", type=_date, help="date for `updated` (default today)")
+    rt.add_argument("--dry-run", action="store_true", help="print what would change; write nothing")
     return p
 
 
@@ -245,4 +260,28 @@ def cmd_index(args) -> int:
     return 0
 
 
-COMMANDS = {"lint": cmd_lint, "next": cmd_next, "new": cmd_new, "graph": cmd_graph, "index": cmd_index}
+def cmd_digest(args) -> int:
+    cfg = _load(args)
+    if not cfg.digest_out:
+        raise config.ConfigError("no [digest] table in .dox.toml; add `out` (and `include` for other homes)")
+    ctx = Context(cfg, Corpus(cfg))
+    if args.check:
+        stale = list(rules.check_digest_fresh(ctx))
+        for f in stale:
+            print(f.text())
+        return 1 if stale else 0
+    for p in rules.write(ctx):
+        print(p)
+    return 0
+
+
+def cmd_retire(args) -> int:
+    cfg = _load(args)
+    ctx = Context(cfg, Corpus(cfg))
+    for line in retire.run(ctx, args.ref, by=args.by, absorbed=args.absorbed, status=args.status,
+                           date=args.date or datetime.date.today(), dry_run=args.dry_run):
+        print(line)
+    return 0
+
+
+COMMANDS = {"digest": cmd_digest, "retire": cmd_retire, "lint": cmd_lint, "next": cmd_next, "new": cmd_new, "graph": cmd_graph, "index": cmd_index}

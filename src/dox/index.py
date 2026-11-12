@@ -66,13 +66,13 @@ def targets(ctx) -> dict[str, str]:
     return out
 
 
-def render(existing: str | None, block: str) -> str:
-    wrapped = f"{BEGIN}\n{block}{END}"
+def render(existing: str | None, block: str, begin: str = BEGIN, end: str = END) -> str:
+    wrapped = f"{begin}\n{block}{end}"
     if existing is None:
         return wrapped + "\n"
-    b, e = existing.find(BEGIN), existing.find(END)
+    b, e = existing.find(begin), existing.find(end)
     if b >= 0 and e > b:
-        return existing[:b] + wrapped + existing[e + len(END):]
+        return existing[:b] + wrapped + existing[e + len(end):]
     sep = "" if existing.endswith("\n\n") or not existing else ("\n" if existing.endswith("\n") else "\n\n")
     return existing + sep + wrapped + "\n"
 

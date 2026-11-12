@@ -3,7 +3,7 @@ id: contract
 title: Schema repo contract, version 1
 status: current
 created: 2026-11-01
-updated: 2026-11-01
+updated: 2026-11-08
 decisions: [ADR-0001]
 ---
 
@@ -18,8 +18,11 @@ repository commits in `.dox.toml`. Examples use the fictional schema repo
 ## Version
 
 ```toml
-contract = "1.0"
+contract = "1.1"
 ```
+
+1.1 adds `[rules]`, `[types.<type>] retire` and the repository's
+`[digest]`, and the `rules-shape` and `digest-fresh` checks.
 
 `contract` is required in `dox.toml`. dox reads the major number and
 refuses a major it does not support (exit 2). Minor versions add optional
@@ -75,6 +78,7 @@ command line (`dox new adr <slug>`) and in `.dox.toml`.
 | `fallback` | bool | no | placement | Claims any Markdown file with frontmatter that no other type claims, anywhere in the repository. At most one type |
 | `status` | table or `"none"` | yes | status | See below |
 | `links` | table | no | links | Frontmatter field to link meaning; see below |
+| `retire` | table | no | status | Statuses `dox retire` sets: `by` (replaced by a successor) and `absorbed` (absorbed into another document). Each must have role `retired`. Without `absorbed`, an absorbed document keeps its status |
 | `review_date` | string | no | review date | Field holding the next review date, read by `stale` (a later release) |
 | `index` | string | no | | File in each live directory that receives a generated index block |
 | `template` | string | no | | File template for `dox new`, relative to `templates` |
@@ -196,6 +200,30 @@ exists. Generated blocks sit between `<!-- dox:index:begin -->` and
 fails when a regenerated block differs. Links inside generated blocks do
 not count as inbound links for `graph` orphans.
 
+### `[rules]` (contract 1.1)
+
+How a rules document is shaped. Omit for none; `rules-shape` and the
+digest then do nothing.
+
+| Key | Type | Meaning |
+|-----|------|---------|
+| `type` | string | The type whose documents are rules files |
+| `heading` | regex | A rule heading, with named groups `id` and `text` (the one-line imperative) |
+| `level` | int | Heading level of a rule, default 3. Any heading at that level that does not match `heading` is a finding; a heading at or above it ends the rule |
+| `fields` | list of `{name, regex}` | Each rule's section must match every regex (multiline) |
+| `link` | bool | Each rule's section must carry at least one Markdown link |
+
+```toml
+[rules]
+type = "rules"
+heading = '^### (?P<id>[A-Z]+[0-9]+) — (?P<text>.+)$'
+link = true
+fields = [
+  { name = "Why", regex = '\*\*Why:\*\*' },
+  { name = "Enforced-by", regex = '\*\*Enforced-by:\*\* *(?:(?:hook|lint|test):\S+|review)' },
+]
+```
+
 ## Repository: `.dox.toml`
 
 | Key | Type | Required | Meaning |
@@ -207,6 +235,7 @@ not count as inbound links for `graph` orphans.
 | `exclude` | list of glob | no | Paths no check reads (vendored trees, fixtures) |
 | `baseline` | string | no | Baseline file path; absent means no baseline |
 | `[severity]` | table | no | Per-check override of the schema repo default |
+| `[digest]` | table | no | The rules digest (contract 1.1), below |
 | `[checks.<id>]` | table | no | Per-check options; each key replaces the schema repo's |
 
 ```toml
@@ -226,6 +255,29 @@ exempt = ["vectors/**"]
 
 The repository names the schema repo's version, never the schema repo
 itself (ADR-0001 section 2).
+
+### `[digest]`
+
+The rules digest: one line per rule, id and imperative, for an agent's
+always-loaded context. `dox digest` writes it between
+`<!-- dox:digest:begin -->` and `<!-- dox:digest:end -->` in `out`;
+`digest-fresh` fails when a fresh render differs.
+
+| Key | Type | Meaning |
+|-----|------|---------|
+| `out` | string | Repository-relative path of the digest file (it may sit outside the docs root, such as `.claude/rules/`) |
+| `include` | list | Rules files of other homes, each `<home>:<path>@<ref>`, listed first in this order. `<path>` is relative to that repository's root; `<ref>` is a tag or commit |
+
+```toml
+[digest]
+out = ".claude/rules/rules-of-the-road.md"
+include = ["handbook:rules/platform.md@rules-v1.0.0"]
+```
+
+An include is read from the sibling clone (`DOX_CLONES`) at `<ref>`, else
+through the GitHub API, and cached by ref; `main`, `master` and `HEAD`
+are never cached. Pin a tag or commit, so a digest changes only when the
+pin does. An unreachable include is exit 3.
 
 ## Environment and workspace
 
@@ -255,6 +307,8 @@ The workspace file is `$XDG_CONFIG_HOME/dox/config.toml`
 | `index-fresh` | yes | | A generated index or digest differs from what `dox index` would write |
 | `no-work-ids` | yes | `patterns`, `exempt` | Pattern matches in the prose (frontmatter excluded) of Markdown files that are not work documents, in a repository whose `types` hold no work type |
 | `no-plans-in-canon` | yes | `dirs` | Work-kind documents, or Markdown files matching `dirs`, in a repository whose `types` hold no work type |
+| `rules-shape` | yes | | In a `[rules]` type document: a heading at the rule level that does not match `heading`, a duplicate rule id, a rule missing a `fields` match or (with `link`) a link |
+| `digest-fresh` | yes, after its includes are cached | | The `[digest]` file differs from what `dox digest` would write |
 | `links-remote` | no | | Homed refs, and `cross_repo` URLs on a default branch (`main`, `master`, `HEAD`), that do not exist on the target home's default branch |
 
 A document whose type is not in the repository's `types` is reported once,
